@@ -1,5 +1,5 @@
 var rdf = require('rdf-graph-abstract')
-var inherits = require('inherits')
+var util = require('util')
 
 rdf.NamedNode = function (iri) {
   this.interfaceName = 'NamedNode'
@@ -36,13 +36,9 @@ rdf.NamedNode.prototype.valueOf = function () {
   return this.nominalValue
 }
 
-rdf.BlankNode = function (label) {
+rdf.BlankNode = function () {
   this.interfaceName = 'BlankNode'
-  if (label != null) {
-    this.nominalValue = label
-  } else {
-    this.nominalValue = 'b' + (++rdf.BlankNode.nextId)
-  }
+  this.nominalValue = 'b' + (++rdf.BlankNode.nextId)
 }
 
 rdf.BlankNode.prototype.equals = function (other) {
@@ -197,12 +193,14 @@ rdf.Graph = function (other) {
   this.actions = []
 
   this._graph = []
+
   this._gspo = {}
+  this._gops = {}
 
   rdf.AbstractGraph.call(this, rdf.Graph, other)
 }
 
-inherits(rdf.Graph, rdf.AbstractGraph)
+util.inherits(rdf.Graph, rdf.AbstractGraph)
 
 rdf.Graph.prototype.add = function (quad) {
   var i = rdf.Graph.index(quad)
@@ -211,8 +209,13 @@ rdf.Graph.prototype.add = function (quad) {
   this._gspo[i.g][i.s] = this._gspo[i.g][i.s] || {}
   this._gspo[i.g][i.s][i.p] = this._gspo[i.g][i.s][i.p] || {}
 
+  this._gops[i.g] = this._gops[i.g] || {}
+  this._gops[i.g][i.o] = this._gops[i.g][i.o] || {}
+  this._gops[i.g][i.o][i.p] = this._gops[i.g][i.o][i.p] || {}
+
   if (!this._gspo[i.g][i.s][i.p][i.o]) {
     this._gspo[i.g][i.s][i.p][i.o] = quad
+    this._gops[i.g][i.o][i.p][i.s] = quad
     this._graph.push(quad)
     this.actions.forEach(function (action) {
       action.run(quad)
@@ -231,6 +234,7 @@ rdf.Graph.prototype.remove = function (quad) {
 
   if (this._gspo[i.g][i.s][i.p][i.o]) {
     delete this._gspo[i.g][i.s][i.p][i.o]
+    delete this._gops[i.g][i.o][i.p][i.s]
     this._graph.splice(this._graph.indexOf(quad), 1)
   }
 }
@@ -248,4 +252,109 @@ rdf.Graph.index = function (quad) {
   }
 }
 
+function objValues(obj) {
+
+    return Object.keys(obj).map((key) => obj[key])
+
+}
+
+rdf.Graph.prototype.match = function (subject, predicate, object, graph) {
+
+  var g = graph ? graph.toString() : null
+  var s = subject ? subject.toString() : null
+  var p = predicate ? predicate.toString() : null
+  var o = object ? object.toString() : null
+
+  if(g === '[object Object]')
+      throw new Error('g not a uri?')
+
+  if(s === '[object Object]')
+      throw new Error('s not a uri?')
+
+  if(p === '[object Object]')
+      throw new Error('p not a uri?')
+
+  if(o === '[object Object]')
+      throw new Error('o not a uri?') 
+
+  if(s && p) {
+
+      var gIdx = this._gspo[g]
+
+      if(!gIdx)
+          return new rdf.Graph()
+
+      var sIdx = gIdx[s]
+
+      if(!sIdx)
+          return new rdf.Graph()
+
+      var pIdx = sIdx[p]
+
+      if(!pIdx)
+          return new rdf.Graph()
+
+      return new rdf.Graph(objValues(pIdx))
+  }
+
+  if(p && o) {
+
+      var gIdx = this._gops[g]
+
+      if(!gIdx)
+          return new rdf.Graph()
+
+      var oIdx = gIdx[o]
+
+      if(!oIdx)
+          return new rdf.Graph()
+
+      var pIdx = oIdx[p]
+
+      if(!pIdx)
+          return new rdf.Graph()
+
+      return new rdf.Graph(objValues(pIdx))
+  }
+
+  if(s && !p && !o) {
+
+      var gIdx = this._gspo[g]
+
+      if(!gIdx)
+          return new rdf.Graph()
+
+      var sIdx = gIdx[s]
+
+      if(!sIdx)
+          return new rdf.Graph()
+
+      return new rdf.Graph([].concat.apply([], objValues(sIdx).map(objValues)))
+  }
+
+  var results = new rdf.Graph(this.toArray().filter(function (quad) {
+    if (graph && (!quad.graph || !quad.graph.equals(graph))) {
+      return false
+    }
+
+    if (subject && !quad.subject.equals(subject)) {
+      return false
+    }
+
+    if (predicate && !quad.predicate.equals(predicate)) {
+      return false
+    }
+
+    if (object && !quad.object.equals(object)) {
+      return false
+    }
+
+    return true
+  }))
+
+  console.warn('slow lookup: { ' + s + ', ' + p + ', ' + o + '} [' + results.toArray().length + ' matches]')
+
+  return results
+
+}
 module.exports = rdf
