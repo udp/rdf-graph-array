@@ -277,7 +277,32 @@ rdf.Graph.prototype.match = function (subject, predicate, object, graph) {
   if(o === '[object Object]')
       throw new Error('o not a uri?') 
 
-  if(s && p) {
+  if(s && p && o) {
+
+      var gIdx = this._gspo[g]
+
+      if(!gIdx)
+          return new rdf.Graph()
+
+      var sIdx = gIdx[s]
+
+      if(!sIdx)
+          return new rdf.Graph()
+
+      var pIdx = sIdx[p]
+
+      if(!pIdx)
+          return new rdf.Graph()
+
+      var quad = pIdx[o]
+
+      if(quad)
+          return new rdf.Graph([ quad ])
+
+      return new rdf.Graph()
+  }
+
+  if(s && p && !o) {
 
       var gIdx = this._gspo[g]
 
@@ -297,7 +322,7 @@ rdf.Graph.prototype.match = function (subject, predicate, object, graph) {
       return new rdf.Graph(objValues(pIdx))
   }
 
-  if(p && o) {
+  if(!s && p && o) {
 
       var gIdx = this._gops[g]
 
