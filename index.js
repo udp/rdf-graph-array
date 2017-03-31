@@ -377,7 +377,7 @@ rdf.Graph.prototype.match = function (subject, predicate, object, graph) {
     return true
   }))
 
-  console.warn('slow lookup: { ' + s + ', ' + p + ', ' + o + '} [' + results.toArray().length + ' matches]')
+  //console.warn('slow lookup: { ' + s + ', ' + p + ', ' + o + '} [' + results.toArray().length + ' matches]')
 
   return results
 
