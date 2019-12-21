@@ -1,5 +1,5 @@
 {
-  "name": "rdf-graph-array",
+  "name": "rdf-graph-array-sboljs",
   "version": "0.3.1",
   "description": "Graph implementation using arrays",
   "main": "index.js",
